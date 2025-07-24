@@ -1,51 +1,15 @@
-export type Formatter = (input: string | number | null | undefined) => string
-
-export interface Colors {
-	isColorSupported: boolean
-
-	reset: Formatter
-	bold: Formatter
-	dim: Formatter
-	italic: Formatter
-	underline: Formatter
-	inverse: Formatter
-	hidden: Formatter
-	strikethrough: Formatter
-
-	black: Formatter
-	red: Formatter
-	green: Formatter
-	yellow: Formatter
-	blue: Formatter
-	magenta: Formatter
-	cyan: Formatter
-	white: Formatter
-	gray: Formatter
-
-	bgBlack: Formatter
-	bgRed: Formatter
-	bgGreen: Formatter
-	bgYellow: Formatter
-	bgBlue: Formatter
-	bgMagenta: Formatter
-	bgCyan: Formatter
-	bgWhite: Formatter
-
-	blackBright: Formatter
-	redBright: Formatter
-	greenBright: Formatter
-	yellowBright: Formatter
-	blueBright: Formatter
-	magentaBright: Formatter
-	cyanBright: Formatter
-	whiteBright: Formatter
-
-	bgBlackBright: Formatter
-	bgRedBright: Formatter
-	bgGreenBright: Formatter
-	bgYellowBright: Formatter
-	bgBlueBright: Formatter
-	bgMagentaBright: Formatter
-	bgCyanBright: Formatter
-	bgWhiteBright: Formatter
-}
+import type { SourceMapInput } from '@jridgewell/trace-mapping';
+export type { SourceMapSegment, DecodedSourceMap, EncodedSourceMap, } from '@jridgewell/trace-mapping';
+export type { SourceMapInput };
+export declare type LoaderContext = {
+    readonly importer: string;
+    readonly depth: number;
+    source: string;
+    content: string | null | undefined;
+    ignore: boolean | undefined;
+};
+export declare type SourceMapLoader = (file: string, ctx: LoaderContext) => SourceMapInput | null | undefined | void;
+export declare type Options = {
+    excludeContent?: boolean;
+    decodedMappings?: boolean;
+};

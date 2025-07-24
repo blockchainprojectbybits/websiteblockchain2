@@ -1,148 +1,139 @@
-# normalize-range 
+# quick-lru [![Build Status](https://travis-ci.org/sindresorhus/quick-lru.svg?branch=master)](https://travis-ci.org/sindresorhus/quick-lru) [![Coverage Status](https://coveralls.io/repos/github/sindresorhus/quick-lru/badge.svg?branch=master)](https://coveralls.io/github/sindresorhus/quick-lru?branch=master)
 
-Utility for normalizing a numeric range, with a wrapping function useful for polar coordinates.
+> Simple [“Least Recently Used” (LRU) cache](https://en.m.wikipedia.org/wiki/Cache_replacement_policies#Least_Recently_Used_.28LRU.29)
 
-[![Build Status](https://travis-ci.org/jamestalmage/normalize-range.svg?branch=master)](https://travis-ci.org/jamestalmage/normalize-range)
-[![Coverage Status](https://coveralls.io/repos/jamestalmage/normalize-range/badge.svg?branch=master&service=github)](https://coveralls.io/github/jamestalmage/normalize-range?branch=master)
-[![Code Climate](https://codeclimate.com/github/jamestalmage/normalize-range/badges/gpa.svg)](https://codeclimate.com/github/jamestalmage/normalize-range)
-[![Dependency Status](https://david-dm.org/jamestalmage/normalize-range.svg)](https://david-dm.org/jamestalmage/normalize-range)
-[![devDependency Status](https://david-dm.org/jamestalmage/normalize-range/dev-status.svg)](https://david-dm.org/jamestalmage/normalize-range#info=devDependencies)
+Useful when you need to cache something and limit memory usage.
 
-[![NPM](https://nodei.co/npm/normalize-range.png)](https://nodei.co/npm/normalize-range/)
+Inspired by the [`hashlru` algorithm](https://github.com/dominictarr/hashlru#algorithm), but instead uses [`Map`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map) to support keys of any type, not just strings, and values can be `undefined`.
+
+## Install
+
+```
+$ npm install quick-lru
+```
 
 ## Usage
 
 ```js
-var nr = require('normalize-range');
+const QuickLRU = require('quick-lru');
 
-nr.wrap(0, 360, 400);
-//=> 40
+const lru = new QuickLRU({maxSize: 1000});
 
-nr.wrap(0, 360, -90);
-//=> 270
+lru.set('🦄', '🌈');
 
-nr.limit(0, 100, 500);
-//=> 100
-
-nr.limit(0, 100, -20);
-//=> 0
-
-// There is a convenient currying function
-var wrapAngle = nr.curry(0, 360).wrap;
-var limitTo10 = nr.curry(0, 10).limit;
-
-wrapAngle(-30);
-//=> 330
-```
-## API
-
-### wrap(min, max, value)
-
-Normalizes a values that "wraps around". For example, in a polar coordinate system, 270˚ can also be
-represented as -90˚. 
-For wrapping purposes we assume `max` is functionally equivalent to `min`, and that `wrap(max + 1) === wrap(min + 1)`.
-Wrap always assumes that `min` is *inclusive*, and `max` is *exclusive*.
-In other words, if `value === max` the function will wrap it, and return `min`, but `min` will not be wrapped.
-
-```js
-nr.wrap(0, 360, 0) === 0;
-nr.wrap(0, 360, 360) === 0;
-nr.wrap(0, 360, 361) === 1;
-nr.wrap(0, 360, -1) === 359;
-```
-
-You are not restricted to whole numbers, and ranges can be negative.
-
-```js
-var π = Math.PI;
-var radianRange = nr.curry(-π, π);
-
-redianRange.wrap(0) === 0;
-nr.wrap(π) === -π;
-nr.wrap(4 * π / 3) === -2 * π / 3;
-```
-
-### limit(min, max, value)
-
-Normalize the value by bringing it within the range.
-If `value` is greater than `max`, `max` will be returned.
-If `value` is less than `min`, `min` will be returned.
-Otherwise, `value` is returned unaltered.
-Both ends of this range are *inclusive*.
-
-### test(min, max, value, [minExclusive], [maxExclusive])
-
-Returns `true` if `value` is within the range, `false` otherwise.
-It defaults to `inclusive` on both ends of the range, but that can be
-changed by setting `minExclusive` and/or `maxExclusive` to a truthy value.
-
-### validate(min, max, value, [minExclusive], [maxExclusive])
-
-Returns `value` or throws an error if `value` is outside the specified range.
-
-### name(min, max, value, [minExclusive], [maxExclusive])
-
-Returns a string representing this range in 
-[range notation](https://en.wikipedia.org/wiki/Interval_(mathematics)#Classification_of_intervals).
-
-### curry(min, max, [minExclusive], [maxExclusive])
-
-Convenience method for currying all method arguments except `value`.
-
-```js
-var angle = require('normalize-range').curry(-180, 180, false, true);
-
-angle.wrap(270)
-//=> -90
-
-angle.limit(200)
-//=> 180
-
-angle.test(0)
+lru.has('🦄');
 //=> true
 
-angle.validate(300)
-//=> throws an Error
-
-angle.toString() // or angle.name()
-//=> "[-180,180)"
+lru.get('🦄');
+//=> '🌈'
 ```
 
-#### min
+## API
 
-*Required*  
+### new QuickLRU(options?)
+
+Returns a new instance.
+
+### options
+
+Type: `object`
+
+#### maxSize
+
+*Required*\
 Type: `number`
 
-The minimum value (inclusive) of the range.
+The maximum number of items before evicting the least recently used items.
 
-#### max
+#### maxAge
 
-*Required*  
-Type: `number`
+Type: `number`\
+Default: `Infinity`
 
-The maximum value (exclusive) of the range.
+The maximum number of milliseconds an item should remain in cache.
+By default maxAge will be Infinity, which means that items will never expire.
 
-#### value
+Lazy expiration happens upon the next `write` or `read` call.
 
-*Required*  
-Type: `number`
+Individual expiration of an item can be specified by the `set(key, value, options)` method.
 
-The value to be normalized.
+#### onEviction
 
-#### returns
+*Optional*\
+Type: `(key, value) => void`
 
-Type: `number`
+Called right before an item is evicted from the cache.
 
-The normalized value.
+Useful for side effects or for items like object URLs that need explicit cleanup (`revokeObjectURL`).
 
-## Building and Releasing
+### Instance
 
-- `npm test`: tests, linting, coverage and style checks.
-- `npm run watch`: autotest mode for active development.
-- `npm run debug`: run tests without coverage (istanbul can obscure line #'s) 
+The instance is [`iterable`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Iteration_protocols) so you can use it directly in a [`for…of`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Statements/for...of) loop.
 
-Release via `cut-release` tool.
+Both `key` and `value` can be of any type.
 
-## License
+#### .set(key, value, options?)
 
-MIT © [James Talmage](http://github.com/jamestalmage)
+Set an item. Returns the instance.
+
+Individual expiration of an item can be specified with the `maxAge` option. If not specified, the global `maxAge` value will be used in case it is specified on the constructor, otherwise the item will never expire.
+
+#### .get(key)
+
+Get an item.
+
+#### .has(key)
+
+Check if an item exists.
+
+#### .peek(key)
+
+Get an item without marking it as recently used.
+
+#### .delete(key)
+
+Delete an item.
+
+Returns `true` if the item is removed or `false` if the item doesn't exist.
+
+#### .clear()
+
+Delete all items.
+
+#### .resize(maxSize)
+
+Update the `maxSize`, discarding items as necessary. Insertion order is mostly preserved, though this is not a strong guarantee.
+
+Useful for on-the-fly tuning of cache sizes in live systems.
+
+#### .keys()
+
+Iterable for all the keys.
+
+#### .values()
+
+Iterable for all the values.
+
+#### .entriesAscending()
+
+Iterable for all entries, starting with the oldest (ascending in recency).
+
+#### .entriesDescending()
+
+Iterable for all entries, starting with the newest (descending in recency).
+
+#### .size
+
+The stored item count.
+
+---
+
+<div align="center">
+	<b>
+		<a href="https://tidelift.com/subscription/pkg/npm-quick-lru?utm_source=npm-quick-lru&utm_medium=referral&utm_campaign=readme">Get professional support for this package with a Tidelift subscription</a>
+	</b>
+	<br>
+	<sub>
+		Tidelift helps make open source sustainable for maintainers while giving companies<br>assurances about security, maintenance, and licensing for their dependencies.
+	</sub>
+</div>
