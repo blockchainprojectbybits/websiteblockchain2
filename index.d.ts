@@ -1,91 +1,177 @@
-/**
- * Generate secure URL-friendly unique ID.
- *
- * By default, the ID will have 21 symbols to have a collision probability
- * similar to UUID v4.
- *
- * ```js
- * import { nanoid } from 'nanoid'
- * model.id = nanoid() //=> "Uakgb_J5m9g-0JDMbcJqL"
- * ```
- *
- * @param size Size of the ID. The default size is 21.
- * @returns A random string.
- */
-export function nanoid(size?: number): string
+declare namespace postcssValueParser {
+  interface BaseNode {
+    /**
+     * The offset, inclusive, inside the CSS value at which the node starts.
+     */
+    sourceIndex: number;
 
-/**
- * Generate secure unique ID with custom alphabet.
- *
- * Alphabet must contain 256 symbols or less. Otherwise, the generator
- * will not be secure.
- *
- * @param alphabet Alphabet used to generate the ID.
- * @param defaultSize Size of the ID. The default size is 21.
- * @returns A random string generator.
- *
- * ```js
- * const { customAlphabet } = require('nanoid')
- * const nanoid = customAlphabet('0123456789абвгдеё', 5)
- * nanoid() //=> "8ё56а"
- * ```
- */
-export function customAlphabet(
-  alphabet: string,
-  defaultSize?: number
-): (size?: number) => string
+    /**
+     * The offset, exclusive, inside the CSS value at which the node ends.
+     */
+    sourceEndIndex: number;
 
-/**
- * Generate unique ID with custom random generator and alphabet.
- *
- * Alphabet must contain 256 symbols or less. Otherwise, the generator
- * will not be secure.
- *
- * ```js
- * import { customRandom } from 'nanoid/format'
- *
- * const nanoid = customRandom('abcdef', 5, size => {
- *   const random = []
- *   for (let i = 0; i < size; i++) {
- *     random.push(randomByte())
- *   }
- *   return random
- * })
- *
- * nanoid() //=> "fbaef"
- * ```
- *
- * @param alphabet Alphabet used to generate a random string.
- * @param size Size of the random string.
- * @param random A random bytes generator.
- * @returns A random string generator.
- */
-export function customRandom(
-  alphabet: string,
-  size: number,
-  random: (bytes: number) => Uint8Array
-): () => string
+    /**
+     * The node's characteristic value
+     */
+    value: string;
+  }
 
-/**
- * URL safe symbols.
- *
- * ```js
- * import { urlAlphabet } from 'nanoid'
- * const nanoid = customAlphabet(urlAlphabet, 10)
- * nanoid() //=> "Uakgb_J5m9"
- * ```
- */
-export const urlAlphabet: string
+  interface ClosableNode {
+    /**
+     * Whether the parsed CSS value ended before the node was properly closed
+     */
+    unclosed?: true;
+  }
 
-/**
- * Generate an array of random bytes collected from hardware noise.
- *
- * ```js
- * import { customRandom, random } from 'nanoid'
- * const nanoid = customRandom("abcdef", 5, random)
- * ```
- *
- * @param bytes Size of the array.
- * @returns An array of random bytes.
- */
-export function random(bytes: number): Uint8Array
+  interface AdjacentAwareNode {
+    /**
+     * The token at the start of the node
+     */
+    before: string;
+
+    /**
+     * The token at the end of the node
+     */
+    after: string;
+  }
+
+  interface CommentNode extends BaseNode, ClosableNode {
+    type: "comment";
+  }
+
+  interface DivNode extends BaseNode, AdjacentAwareNode {
+    type: "div";
+  }
+
+  interface FunctionNode extends BaseNode, ClosableNode, AdjacentAwareNode {
+    type: "function";
+
+    /**
+     * Nodes inside the function
+     */
+    nodes: Node[];
+  }
+
+  interface SpaceNode extends BaseNode {
+    type: "space";
+  }
+
+  interface StringNode extends BaseNode, ClosableNode {
+    type: "string";
+
+    /**
+     * The quote type delimiting the string
+     */
+    quote: '"' | "'";
+  }
+
+  interface UnicodeRangeNode extends BaseNode {
+    type: "unicode-range";
+  }
+
+  interface WordNode extends BaseNode {
+    type: "word";
+  }
+
+  /**
+   * Any node parsed from a CSS value
+   */
+  type Node =
+    | CommentNode
+    | DivNode
+    | FunctionNode
+    | SpaceNode
+    | StringNode
+    | UnicodeRangeNode
+    | WordNode;
+
+  interface CustomStringifierCallback {
+    /**
+     * @param node The node to stringify
+     * @returns The serialized CSS representation of the node
+     */
+    (nodes: Node): string | undefined;
+  }
+
+  interface WalkCallback {
+    /**
+     * @param node  The currently visited node
+     * @param index The index of the node in the series of parsed nodes
+     * @param nodes The series of parsed nodes
+     * @returns Returning `false` will prevent traversal of descendant nodes (only applies if `bubble` was set to `true` in the `walk()` call)
+     */
+    (node: Node, index: number, nodes: Node[]): void | boolean;
+  }
+
+  /**
+   * A CSS dimension, decomposed into its numeric and unit parts
+   */
+  interface Dimension {
+    number: string;
+    unit: string;
+  }
+
+  /**
+   * A wrapper around a parsed CSS value that allows for inspecting and walking nodes
+   */
+  interface ParsedValue {
+    /**
+     * The series of parsed nodes
+     */
+    nodes: Node[];
+
+    /**
+     * Walk all parsed nodes, applying a callback
+     *
+     * @param callback A visitor callback that will be executed for each node
+     * @param bubble   When set to `true`, walking will be done inside-out instead of outside-in
+     */
+    walk(callback: WalkCallback, bubble?: boolean): this;
+  }
+
+  interface ValueParser {
+    /**
+     * Decompose a CSS dimension into its numeric and unit part
+     *
+     * @param value The dimension to decompose
+     * @returns An object representing `number` and `unit` part of the dimension or `false` if the decomposing fails
+     */
+    unit(value: string): Dimension | false;
+
+    /**
+     * Serialize a series of nodes into a CSS value
+     *
+     * @param nodes  The nodes to stringify
+     * @param custom A custom stringifier callback
+     * @returns The generated CSS value
+     */
+    stringify(nodes: Node | Node[], custom?: CustomStringifierCallback): string;
+
+    /**
+     * Walk a series of nodes, applying a callback
+     *
+     * @param nodes    The nodes to walk
+     * @param callback A visitor callback that will be executed for each node
+     * @param bubble   When set to `true`, walking will be done inside-out instead of outside-in
+     */
+    walk(nodes: Node[], callback: WalkCallback, bubble?: boolean): void;
+
+    /**
+     * Parse a CSS value into a series of nodes to operate on
+     *
+     * @param value The value to parse
+     */
+    new (value: string): ParsedValue;
+
+    /**
+     * Parse a CSS value into a series of nodes to operate on
+     *
+     * @param value The value to parse
+     */
+    (value: string): ParsedValue;
+  }
+}
+
+declare const postcssValueParser: postcssValueParser.ValueParser;
+
+export = postcssValueParser;

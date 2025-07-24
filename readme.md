@@ -1,211 +1,148 @@
-# escalade [![CI](https://github.com/lukeed/escalade/workflows/CI/badge.svg)](https://github.com/lukeed/escalade/actions) [![licenses](https://licenses.dev/b/npm/escalade)](https://licenses.dev/npm/escalade) [![codecov](https://badgen.now.sh/codecov/c/github/lukeed/escalade)](https://codecov.io/gh/lukeed/escalade)
+# normalize-range 
 
-> A tiny (183B to 210B) and [fast](#benchmarks) utility to ascend parent directories
+Utility for normalizing a numeric range, with a wrapping function useful for polar coordinates.
 
-With [escalade](https://en.wikipedia.org/wiki/Escalade), you can scale parent directories until you've found what you're looking for.<br>Given an input file or directory, `escalade` will continue executing your callback function until either:
+[![Build Status](https://travis-ci.org/jamestalmage/normalize-range.svg?branch=master)](https://travis-ci.org/jamestalmage/normalize-range)
+[![Coverage Status](https://coveralls.io/repos/jamestalmage/normalize-range/badge.svg?branch=master&service=github)](https://coveralls.io/github/jamestalmage/normalize-range?branch=master)
+[![Code Climate](https://codeclimate.com/github/jamestalmage/normalize-range/badges/gpa.svg)](https://codeclimate.com/github/jamestalmage/normalize-range)
+[![Dependency Status](https://david-dm.org/jamestalmage/normalize-range.svg)](https://david-dm.org/jamestalmage/normalize-range)
+[![devDependency Status](https://david-dm.org/jamestalmage/normalize-range/dev-status.svg)](https://david-dm.org/jamestalmage/normalize-range#info=devDependencies)
 
-1) the callback returns a truthy value
-2) `escalade` has reached the system root directory (eg, `/`)
-
-> **Important:**<br>Please note that `escalade` only deals with direct ancestry – it will not dive into parents' sibling directories.
-
----
-
-**Notice:** As of v3.1.0, `escalade` now includes [Deno support](http://deno.land/x/escalade)! Please see [Deno Usage](#deno) below.
-
----
-
-## Install
-
-```
-$ npm install --save escalade
-```
-
-
-## Modes
-
-There are two "versions" of `escalade` available:
-
-#### "async"
-> **Node.js:** >= 8.x<br>
-> **Size (gzip):** 210 bytes<br>
-> **Availability:** [CommonJS](https://unpkg.com/escalade/dist/index.js), [ES Module](https://unpkg.com/escalade/dist/index.mjs)
-
-This is the primary/default mode. It makes use of `async`/`await` and [`util.promisify`](https://nodejs.org/api/util.html#util_util_promisify_original).
-
-#### "sync"
-> **Node.js:** >= 6.x<br>
-> **Size (gzip):** 183 bytes<br>
-> **Availability:** [CommonJS](https://unpkg.com/escalade/sync/index.js), [ES Module](https://unpkg.com/escalade/sync/index.mjs)
-
-This is the opt-in mode, ideal for scenarios where `async` usage cannot be supported.
-
+[![NPM](https://nodei.co/npm/normalize-range.png)](https://nodei.co/npm/normalize-range/)
 
 ## Usage
 
-***Example Structure***
-
-```
-/Users/lukeed
-  └── oss
-    ├── license
-    └── escalade
-      ├── package.json
-      └── test
-        └── fixtures
-          ├── index.js
-          └── foobar
-            └── demo.js
-```
-
-***Example Usage***
-
 ```js
-//~> demo.js
-import { join } from 'path';
-import escalade from 'escalade';
+var nr = require('normalize-range');
 
-const input = join(__dirname, 'demo.js');
-// or: const input = __dirname;
+nr.wrap(0, 360, 400);
+//=> 40
 
-const pkg = await escalade(input, (dir, names) => {
-  console.log('~> dir:', dir);
-  console.log('~> names:', names);
-  console.log('---');
+nr.wrap(0, 360, -90);
+//=> 270
 
-  if (names.includes('package.json')) {
-    // will be resolved into absolute
-    return 'package.json';
-  }
-});
+nr.limit(0, 100, 500);
+//=> 100
 
-//~> dir: /Users/lukeed/oss/escalade/test/fixtures/foobar
-//~> names: ['demo.js']
-//---
-//~> dir: /Users/lukeed/oss/escalade/test/fixtures
-//~> names: ['index.js', 'foobar']
-//---
-//~> dir: /Users/lukeed/oss/escalade/test
-//~> names: ['fixtures']
-//---
-//~> dir: /Users/lukeed/oss/escalade
-//~> names: ['package.json', 'test']
-//---
+nr.limit(0, 100, -20);
+//=> 0
 
-console.log(pkg);
-//=> /Users/lukeed/oss/escalade/package.json
+// There is a convenient currying function
+var wrapAngle = nr.curry(0, 360).wrap;
+var limitTo10 = nr.curry(0, 10).limit;
 
-// Now search for "missing123.txt"
-// (Assume it doesn't exist anywhere!)
-const missing = await escalade(input, (dir, names) => {
-  console.log('~> dir:', dir);
-  return names.includes('missing123.txt') && 'missing123.txt';
-});
-
-//~> dir: /Users/lukeed/oss/escalade/test/fixtures/foobar
-//~> dir: /Users/lukeed/oss/escalade/test/fixtures
-//~> dir: /Users/lukeed/oss/escalade/test
-//~> dir: /Users/lukeed/oss/escalade
-//~> dir: /Users/lukeed/oss
-//~> dir: /Users/lukeed
-//~> dir: /Users
-//~> dir: /
-
-console.log(missing);
-//=> undefined
+wrapAngle(-30);
+//=> 330
 ```
-
-> **Note:** To run the above example with "sync" mode, import from `escalade/sync` and remove the `await` keyword.
-
-
 ## API
 
-### escalade(input, callback)
-Returns: `string|void` or `Promise<string|void>`
+### wrap(min, max, value)
 
-When your `callback` locates a file, `escalade` will resolve/return with an absolute path.<br>
-If your `callback` was never satisfied, then `escalade` will resolve/return with nothing (undefined).
+Normalizes a values that "wraps around". For example, in a polar coordinate system, 270˚ can also be
+represented as -90˚. 
+For wrapping purposes we assume `max` is functionally equivalent to `min`, and that `wrap(max + 1) === wrap(min + 1)`.
+Wrap always assumes that `min` is *inclusive*, and `max` is *exclusive*.
+In other words, if `value === max` the function will wrap it, and return `min`, but `min` will not be wrapped.
 
-> **Important:**<br>The `sync` and `async` versions share the same API.<br>The **only** difference is that `sync` is not Promise-based.
-
-#### input
-Type: `string`
-
-The path from which to start ascending.
-
-This may be a file or a directory path.<br>However, when `input` is a file, `escalade` will begin with its parent directory.
-
-> **Important:** Unless given an absolute path, `input` will be resolved from `process.cwd()` location.
-
-#### callback
-Type: `Function`
-
-The callback to execute for each ancestry level. It always is given two arguments:
-
-1) `dir` - an absolute path of the current parent directory
-2) `names` - a list (`string[]`) of contents _relative to_ the `dir` parent
-
-> **Note:** The `names` list can contain names of files _and_ directories.
-
-When your callback returns a _falsey_ value, then `escalade` will continue with `dir`'s parent directory, re-invoking your callback with new argument values.
-
-When your callback returns a string, then `escalade` stops iteration immediately.<br>
-If the string is an absolute path, then it's left as is. Otherwise, the string is resolved into an absolute path _from_ the `dir` that housed the satisfying condition.
-
-> **Important:** Your `callback` can be a `Promise/AsyncFunction` when using the "async" version of `escalade`.
-
-## Benchmarks
-
-> Running on Node.js v10.13.0
-
-```
-# Load Time
-  find-up         3.891ms
-  escalade        0.485ms
-  escalade/sync   0.309ms
-
-# Levels: 6 (target = "foo.txt"):
-  find-up          x 24,856 ops/sec ±6.46% (55 runs sampled)
-  escalade         x 73,084 ops/sec ±4.23% (73 runs sampled)
-  find-up.sync     x  3,663 ops/sec ±1.12% (83 runs sampled)
-  escalade/sync    x  9,360 ops/sec ±0.62% (88 runs sampled)
-
-# Levels: 12 (target = "package.json"):
-  find-up          x 29,300 ops/sec ±10.68% (70 runs sampled)
-  escalade         x 73,685 ops/sec ± 5.66% (66 runs sampled)
-  find-up.sync     x  1,707 ops/sec ± 0.58% (91 runs sampled)
-  escalade/sync    x  4,667 ops/sec ± 0.68% (94 runs sampled)
-
-# Levels: 18 (target = "missing123.txt"):
-  find-up          x 21,818 ops/sec ±17.37% (14 runs sampled)
-  escalade         x 67,101 ops/sec ±21.60% (20 runs sampled)
-  find-up.sync     x  1,037 ops/sec ± 2.86% (88 runs sampled)
-  escalade/sync    x  1,248 ops/sec ± 0.50% (93 runs sampled)
+```js
+nr.wrap(0, 360, 0) === 0;
+nr.wrap(0, 360, 360) === 0;
+nr.wrap(0, 360, 361) === 1;
+nr.wrap(0, 360, -1) === 359;
 ```
 
-## Deno
+You are not restricted to whole numbers, and ranges can be negative.
 
-As of v3.1.0, `escalade` is available on the Deno registry.
+```js
+var π = Math.PI;
+var radianRange = nr.curry(-π, π);
 
-Please note that the [API](#api) is identical and that there are still [two modes](#modes) from which to choose:
-
-```ts
-// Choose "async" mode
-import escalade from 'https://deno.land/escalade/async.ts';
-
-// Choose "sync" mode
-import escalade from 'https://deno.land/escalade/sync.ts';
+redianRange.wrap(0) === 0;
+nr.wrap(π) === -π;
+nr.wrap(4 * π / 3) === -2 * π / 3;
 ```
 
-> **Important:** The `allow-read` permission is required!
+### limit(min, max, value)
 
+Normalize the value by bringing it within the range.
+If `value` is greater than `max`, `max` will be returned.
+If `value` is less than `min`, `min` will be returned.
+Otherwise, `value` is returned unaltered.
+Both ends of this range are *inclusive*.
 
-## Related
+### test(min, max, value, [minExclusive], [maxExclusive])
 
-- [premove](https://github.com/lukeed/premove) - A tiny (247B) utility to remove items recursively
-- [totalist](https://github.com/lukeed/totalist) - A tiny (195B to 224B) utility to recursively list all (total) files in a directory
-- [mk-dirs](https://github.com/lukeed/mk-dirs) - A tiny (420B) utility to make a directory and its parents, recursively
+Returns `true` if `value` is within the range, `false` otherwise.
+It defaults to `inclusive` on both ends of the range, but that can be
+changed by setting `minExclusive` and/or `maxExclusive` to a truthy value.
+
+### validate(min, max, value, [minExclusive], [maxExclusive])
+
+Returns `value` or throws an error if `value` is outside the specified range.
+
+### name(min, max, value, [minExclusive], [maxExclusive])
+
+Returns a string representing this range in 
+[range notation](https://en.wikipedia.org/wiki/Interval_(mathematics)#Classification_of_intervals).
+
+### curry(min, max, [minExclusive], [maxExclusive])
+
+Convenience method for currying all method arguments except `value`.
+
+```js
+var angle = require('normalize-range').curry(-180, 180, false, true);
+
+angle.wrap(270)
+//=> -90
+
+angle.limit(200)
+//=> 180
+
+angle.test(0)
+//=> true
+
+angle.validate(300)
+//=> throws an Error
+
+angle.toString() // or angle.name()
+//=> "[-180,180)"
+```
+
+#### min
+
+*Required*  
+Type: `number`
+
+The minimum value (inclusive) of the range.
+
+#### max
+
+*Required*  
+Type: `number`
+
+The maximum value (exclusive) of the range.
+
+#### value
+
+*Required*  
+Type: `number`
+
+The value to be normalized.
+
+#### returns
+
+Type: `number`
+
+The normalized value.
+
+## Building and Releasing
+
+- `npm test`: tests, linting, coverage and style checks.
+- `npm run watch`: autotest mode for active development.
+- `npm run debug`: run tests without coverage (istanbul can obscure line #'s) 
+
+Release via `cut-release` tool.
 
 ## License
 
-MIT © [Luke Edwards](https://lukeed.com)
+MIT © [James Talmage](http://github.com/jamestalmage)
