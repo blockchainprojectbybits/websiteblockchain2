@@ -1,34 +1,22 @@
 {
-  "name": "caniuse-lite",
-  "version": "1.0.30001727",
-  "description": "A smaller version of caniuse-db, with only the essentials!",
-  "main": "dist/unpacker/index.js",
-  "files": [
-    "data",
-    "dist"
-  ],
-  "keywords": [
-    "support"
-  ],
-  "author": {
-    "name": "Ben Briggs",
-    "email": "beneb.info@gmail.com",
-    "url": "http://beneb.info"
+  "name": "node-releases",
+  "version": "2.0.19",
+  "description": "Node.js releases data",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js"
   },
-  "repository": "browserslist/caniuse-lite",
-  "funding": [
-    {
-      "type": "opencollective",
-      "url": "https://opencollective.com/browserslist"
-    },
-    {
-      "type": "tidelift",
-      "url": "https://tidelift.com/funding/github/npm/caniuse-lite"
-    },
-    {
-      "type": "github",
-      "url": "https://github.com/sponsors/ai"
-    }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chicoxyzzy/node-releases.git"
+  },
+  "keywords": [
+    "nodejs",
+    "releases"
   ],
-  "license": "CC-BY-4.0"
+  "author": "Sergey Rubanov <chi187@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "semver": "^7.3.5"
+  }
 }

@@ -1,6 +1,12 @@
-# caniuse-lite
+# Node.js releases data
 
-A smaller version of caniuse-db, with only the essentials!
+All data is located in `data` directory.
 
-## Docs
-Read full docs **[here](https://github.com/browserslist/caniuse-lite#readme)**.
+`data/processed` contains `envs.json` with node.js releases data preprocessed to be used by [Browserslist](https://github.com/ai/browserslist) and other projects. Each version in this file contains only necessary info: version, release date, LTS flag/name, and security flag.
+
+`data/release-schedule` contains `release-schedule.json` with node.js releases date and end of life date.
+
+## Installation
+```bash
+npm install node-releases
+```
